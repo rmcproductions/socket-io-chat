@@ -49,20 +49,23 @@ io.on("connection", socket => {
     // MESSAGE
     socket.on("message", (message, server, channel) => {
         if(users.has(socket.client.id)){
-            if(message.length < 2000){
-                let msg = new chat.MESSAGE(message, users.get(socket.client.id), server, channel);
-                if(msg.content.startsWith("/")){
-                    let invoke = msg.content.substr(1).split(" ")[0];
-                    let args = msg.content.substr(1).split(" ").shift();
-                    if(chat_commands.has(invoke)){
-                        chat_commands.get(invoke).run(args, msg, socket, chat, chat_commands, io, users);
-                        l(msg.author)
+            if(message.content.length < 2000){
+                if(message.content == " " || message.content.length < 1){
+                    let msg = new chat.MESSAGE(message, users.get(socket.client.id), server, channel);
+                    if(msg.content.startsWith("/")){
+                        let invoke = msg.content.substr(1).split(" ")[0];
+                        let args = msg.content.substr(1).split(" ").shift();
+                        if(chat_commands.has(invoke)){
+                            chat_commands.get(invoke).run(args, msg, socket, chat, chat_commands, io, users);
+                            l(msg.author)
+                        }
+                    }
+                    else{
+                        servers.get(server).channels.filter(c => c.name == channel)[0].messages.push(msg);
+                        io.emit("message", msg);
                     }
                 }
-                else{
-                    servers.get(server).channels.filter(c => c.name == channel)[0].messages.push(msg);
-                    io.emit("message", msg);
-                }
+                else socket.emit("report", "Your message is too short");
             }
             else socket.emit("report", "Your message is too long (> 2000 characters)");
         }
