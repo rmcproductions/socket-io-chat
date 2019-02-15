@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>RMC Chat</title>
+        <link rel="stylesheet" href="https://cdn.materialdesignicons.com/3.4.93/css/materialdesignicons.min.css" />
+        <style>
+        
+            @import url('https://fonts.googleapis.com/css?family=PT+Sans');
+            body, html{
+                background: #161618;
+                color: white;
+                font-family: PT Sans, Arial, sans-serif;
+                font-size: 20px;
+            }
+            
+            button{
+                background: #008fff;
+                color: white;
+                border: none;
+                border-radius: 1000px;
+                padding: 10px 30px 10px 30px;
+                font-family: PT Sans, Arial, sans-serif;
+                font-size: 20px;
+            }
+            input{
+                background: #333;
+                color: white;
+                font-family: PT Sans, Arial, sans-serif;
+                font-size: 20px;
+                padding: 10px 30px 10px 30px;
+                border: none;
+                border-radius: 1000px;
+            }
+            input:focus, button:focus{
+                outline: none;
+            }
+
+
+            .login{
+                width: 100%;
+                height: 100%;
+                position: fixed;
+                top:0;left:0;
+                background: #161618;
+                text-align: center;
+            }
+            .login-modal{
+                width: 30%;
+                height: 30%;
+                background: #444;
+                position:fixed;
+                top:0;left:0;bottom:0;right:0;
+                margin: auto;
+                border-radius: 15px;
+                overflow: hidden;
+                animation: popUp .3s ease;
+            }
+            .login-modal-header{
+                background: #008fff;
+                color: white;
+                width:100%;
+                height:40px;
+                font-size: 30px;
+                padding: 10px 0 10px 0;
+            }
+
+            .chat-main{
+                position: fixed;
+                top:0;left:0;
+                width:100%;
+                height:100%;
+                display: none;
+            }
+            .server-list{
+                width: 80px;
+                position:fixed;
+                height:100%;
+                background: #161618;
+            }
+            .server-icon{
+                width:80%;
+                margin: 10%;
+                text-align: center;
+                border-radius: 1000px;
+                background: #333;
+            }
+
+            .channel-list{
+                width:250px;
+                height:100%;
+                position:fixed;
+                top:0;
+                left: 80px;
+                background: #222;
+            }
+            .channel{
+                width:calc(94% - 40px);
+                margin:3%;
+                padding:6px 20px 6px 20px;
+                border-radius: 5px;
+                cursor: pointer;
+            }
+            .channel.selected{
+                background: #333;
+            }
+
+            .server-options{
+                width: calc(100% - 40px);
+                padding: 20px;
+                height: 25px;
+                background: #008fff;
+            }
+
+            .chat-area{
+                width: calc(100% - 80px - 250px);
+                height:100%;
+                position: fixed;
+                top:0;right:0;
+            }
+
+            .write-form{
+                position:absolute;
+                width:calc(100% - 10px);
+                background: #222;
+                height:46px;
+                padding:10px;
+                padding-right:0;
+                bottom:0;
+                right:0;
+            }
+            .write-form button{
+                width:46px;
+                height:46px;
+                padding:10px
+            }
+            .write-form input{
+                width: calc(100% - 70px - 46px);
+                height:26px;
+            }
+
+            .message-container{
+                height: auto;
+                width: 100%;
+                position:absolute;
+                bottom:66px; right:0;
+            }
+            .message{
+                width:100%;
+                padding:5px;
+                color:#888;
+            }
+            .message:nth-child(odd){
+                background: rgba(255,255,255,.05)
+            }
+            
+            @keyframes popUp {
+                0%  { transform: scale(0) }
+                100%{ transform: scale(1) }
+            }
+        </style>
+        <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
+            var socket = io();
+            var account;
+            var loc = {server: "DEFAULT_SERVER", channel: "general"};
+
+            // INIT
+            $(() => {
+
+                // LOGIN ATTEMPT
+                $("form").submit(e => e.preventDefault())
+
+                $("#messaging").submit(e => {
+                    socket.emit("message", $("#m").val(), "DEFAULT_SERVER", "general");
+                    $("#m").val("");
+                })
+
+                $("#login-form").submit(e => {
+                    let data = {
+                        name: $("#name").val()
+                    }
+                    socket.emit("login", data)
+                })
+            })
+
+            // LOGIN
+            socket.on("login", data => {
+                if(data.response == "granted") {
+                    $("#login").detach();
+                    $(".chat-main").css("display", "block");
+                    account = data.account;
+
+                    data.servers = new Map(JSON.parse(data.servers));
+
+                    $("#channel-list").text("");
+
+                    data.servers.get("DEFAULT_SERVER").channels.forEach((c, i) => {
+                        let channelItem = document.createElement("div");
+                        channelItem.classList = "channel" + (i == 0 ? " selected" : "");
+                        channelItem.innerHTML = "#" + c.name;
+                        channelItem.id = "channel-" + c.name;
+                        $("#channel-list").append(channelItem);
+                    });
+
+                    let msgEntry = document.createElement("div");
+                    msgEntry.classList = "message";
+                    msgEntry.innerHTML = "Online users: " + data.users.map(u => u.name);
+                    $(".message-container").append(msgEntry)
+
+                    channelSwitch();
+                }
+                else alert("Your login attempt was rejected. Reason: " + data.reason)
+            })
+
+            // MESSAGE
+            socket.on("message", msg => {
+                if(msg.server == loc.server && msg.channel == loc.channel){
+                    let msgEntry = document.createElement("div");
+                    msgEntry.classList = "message";
+                    msgEntry.innerHTML = msg.author.name + ": " + msg.content;
+                    $(".message-container").append(msgEntry)
+                }
+            })
+
+            // BROADCAST
+            socket.on("broadcast", msg => {
+                let msgEntry = document.createElement("div");
+                msgEntry.classList = "message";
+                msgEntry.innerHTML = msg.content;
+                msgEntry.style.color="#fff";
+                $(".message-container").append(msgEntry)
+            })
+
+            let parseArray = a => {
+                let r = new Map();
+                a.forEach(e => {
+                    r.set(e[0], e[1]);
+                });
+                return r;
+            };
+
+            let channelSwitch = () => {
+                $(".channel").on("click", e => {
+                    $(".channel").removeClass("selected");
+                    $(e.target).addClass("selected");
+                })
+            }
+        </script>
+    </head>
+    <body>
+        <div id="login" class="login">
+            <div class="login-modal">
+                <div class="login-modal-header">
+                    PLEASE LOGIN
+                </div><br>
+                <form id="login-form" action="">
+                    <input autocomplete="off" id="name" placeholder="Pick a nickname..." /><br><br>
+                    <button>LOGIN</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="chat-main">
+            <div class="server-list">
+                <img src="https://i.kym-cdn.com/entries/icons/square/000/020/016/wednesday.jpg" class="server-icon">
+            </div>
+            <div class="channel-list">
+                <div class="server-options">
+                    <span class="mdi mdi-server-network"></span> DEFAULT SERVER
+                </div>
+                <div id="channel-list">
+                    <div class="channel selected">#general</div>
+                </div>
+            </div>
+            <div class="chat-area">
+                <div class="message-container">
+
+                </div>
+                <div class="write-form">
+                    <form action="" id="messaging">
+                        <input id="m" autocomplete="off" placeholder="Message"></input>
+                        <button type="submit"><span class="mdi mdi-chevron-right"></span></button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
