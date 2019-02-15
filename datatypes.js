@@ -3,6 +3,7 @@ class USER {
         this.name = name;
         this.createdAt = new Date();
         this.roles = ['user'];
+        this.color = "#888888";
         if(role) this.roles.push(role); 
     }
 }

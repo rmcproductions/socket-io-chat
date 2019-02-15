@@ -148,7 +148,8 @@
             .message{
                 width:100%;
                 padding:5px;
-                color:#888;
+                color:#bbb;
+                word-wrap: break-word;
             }
             .message:nth-child(odd){
                 background: rgba(255,255,255,.05)
@@ -193,6 +194,7 @@
                     account = data.account;
 
                     data.servers = new Map(JSON.parse(data.servers));
+                    data.users = new Map(JSON.parse(data.users));
 
                     $("#channel-list").text("");
 
@@ -204,9 +206,11 @@
                         $("#channel-list").append(channelItem);
                     });
 
+                    console.log(data.users)
+
                     let msgEntry = document.createElement("div");
                     msgEntry.classList = "message";
-                    msgEntry.innerHTML = "Online users: " + data.users.map(u => u.name);
+                    msgEntry.innerHTML = "Online users: " + Array.from(data.users).map(u => u[1].name);
                     $(".message-container").append(msgEntry)
 
                     channelSwitch();
@@ -219,10 +223,10 @@
                 if(msg.server == loc.server && msg.channel == loc.channel){
                     let msgEntry = document.createElement("div");
                     msgEntry.classList = "message";
-                    msgEntry.innerHTML = msg.author.name + ": " + msg.content;
+                    msgEntry.innerHTML = `<span style="color: ${msg.author.color}">${msg.author.name}</span>: ${msg.content}`;
                     $(".message-container").append(msgEntry)
                 }
-            })
+            });
 
             // BROADCAST
             socket.on("broadcast", msg => {
@@ -231,7 +235,17 @@
                 msgEntry.innerHTML = msg.content;
                 msgEntry.style.color="#fff";
                 $(".message-container").append(msgEntry)
-            })
+            });
+
+            // REPORT
+            socket.on("report", msg => {
+                alert(msg);
+            });
+
+            // UPDATE
+            socket.on("update", () => {
+                window.location.reload();
+            });
 
             let parseArray = a => {
                 let r = new Map();
