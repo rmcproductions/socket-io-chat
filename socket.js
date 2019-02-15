@@ -50,7 +50,7 @@ io.on("connection", socket => {
     socket.on("message", (message, server, channel) => {
         if(users.has(socket.client.id)){
             if(message.length < 2000){
-                if(message == " " || message.length < 1){
+                if(!message == " " || !message.length < 1){
                     let msg = new chat.MESSAGE(message, users.get(socket.client.id), server, channel);
                     if(msg.content.startsWith("/")){
                         let invoke = msg.content.substr(1).split(" ")[0];
